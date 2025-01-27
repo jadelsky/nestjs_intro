@@ -19,6 +19,10 @@ export class UsersService {
         return this.usersRepository.findOne({ where: { id } });
     }
 
+    async findOneByUsername(name: string): Promise<User | null> {
+        return this.usersRepository.findOne({ where: { name } });
+    }
+
     async create(user: User): Promise<User> {
         const newUser = this.usersRepository.create(user);
         return this.usersRepository.save(newUser);

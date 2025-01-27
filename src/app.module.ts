@@ -4,11 +4,13 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     UsersModule,
+    AuthModule,
     TypeOrmModule.forRoot({
       type: process.env.DB_HOST as any,
       host: process.env.PG_HOST,
