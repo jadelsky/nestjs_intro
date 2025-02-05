@@ -1,12 +1,10 @@
-version: '3.9'
-
 services:
   nestapp:
     container_name: nestapp
     image: jadelsky/nestapp:1.0.0
     build: .
     ports:
-      - 3000:3000
+      - "3000:3000"
     environment:
       - DB_HOST=postgres
       - PG_HOST=db
@@ -14,19 +12,24 @@ services:
       - PG_PASSWORD=postgres
       - PG_DB=postgres
       - PG_PORT=5432
+    volumes:
+      - .:/usr/src/app  # Sync local files with the container (hot reload)
+      - /usr/src/app/node_modules  # Prevents overwriting node_modules
+    command: npm run start:dev  # Start in development mode with hot reload
     depends_on:
       - db
+
   db:
     container_name: db
     image: postgres:12
     ports:
-      - 5432:5432
+      - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=postgres  
     volumes:
       - pgdata:/var/lib/postgresql/data
+
 volumes:
   pgdata: {}
-

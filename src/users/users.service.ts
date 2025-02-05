@@ -23,11 +23,6 @@ export class UsersService {
         return this.usersRepository.findOne({ where: { name } });
     }
 
-    async create(user: User): Promise<User> {
-        const newUser = this.usersRepository.create(user);
-        return this.usersRepository.save(newUser);
-    }
-
     async update(id: number, user: User): Promise<User> {
         await this.usersRepository.update(id, user);
         const updatedUser = await this.usersRepository.findOne({ where: { id } });
