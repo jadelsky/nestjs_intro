@@ -1,3 +1,4 @@
+import { IsEmail } from 'class-validator';
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
@@ -6,9 +7,10 @@ export class User {
   id: number;
 
   @Column()
-  name: string;
+  username: string;
 
   @Column()
+  @IsEmail()
   email: string;
 
   @Column()
