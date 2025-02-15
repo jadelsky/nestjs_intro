@@ -15,10 +15,14 @@ export class AuthService {
 
     async signIn(username: string, pass: string): Promise<any> {
         const user = await this.usersService.findOneByUsername(username);
-        if (user?.password !== pass) {
+        if (!user) {
             throw new UnauthorizedException('Invalid credentials');
         }
-        const { password, ...result } = user;
+        const isPassValid = await bcrypt.compare(pass, user.password);
+        if (!isPassValid) {
+            throw new UnauthorizedException('Invalid credentials');
+        }
+        const { password: _, ...result } = user;
         // TODO: Generate a JWT and return it here
         // instead of the user object
         return result;
@@ -40,14 +44,14 @@ export class AuthService {
         }
 
         // Hash password
-        // const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
         
         const newUser = this.usersRepository.create({
             username,
             email,
-            password
+            password: hashedPassword,
         });
 
-        return this.usersRepository.save(newUser);
+        return await this.usersRepository.save(newUser);
     }
 }
