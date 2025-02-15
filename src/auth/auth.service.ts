@@ -26,7 +26,6 @@ export class AuthService {
         // TODO: Generate a JWT and return it here
         // instead of the user object
         return result;
-        //Test GPG signing
     }
 
     async create(user: UserCreateDto): Promise<User> {
