@@ -1,18 +1,18 @@
-import { Controller, Get, Body, Param, Delete, Put, NotFoundException, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Body, Param, Delete, Put, NotFoundException, UsePipes, ValidationPipe, UseGuards  } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { User } from './users.entity';
 import { ApiTags } from '@nestjs/swagger';
 import { DeleteUserSwagger, GetUsersSwagger, GetUserSwagger, UpdateUserSwagger } from './../swagger.decorator';
 import { UserUpdateDto } from './dto/userUpdate.dto';
-import { instanceToPlain } from 'class-transformer';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
     constructor(private readonly usersService: UsersService) {}
 
-    @Get()
+    @UseGuards(JwtAuthGuard)
     @GetUsersSwagger()
+    @Get()
     async findAll(): Promise<object[]> {
         return this.usersService.findAll();
     }

@@ -1,4 +1,4 @@
-import { ApiBody, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { applyDecorators } from '@nestjs/common';
 import { UserUpdateDto } from './users/dto/userUpdate.dto';  
 import { UserCreateDto } from './users/dto/userCreate.dto';  
@@ -7,7 +7,8 @@ import { SignInDto } from './auth/dto/sign-in.dto';
 // USERS CONTROLLER DECORATORS
 export function GetUsersSwagger(): MethodDecorator {
     return applyDecorators(
-      ApiOperation({ summary: 'Get all users' }),
+      ApiOperation({ summary: 'Get all users' }),      
+      ApiBearerAuth('access-token'),
       ApiResponse({ status: 200, description: 'List of ALL users.' }),
       ApiResponse({ status: 500, description: 'Internal server error' })
     );

@@ -11,6 +11,12 @@ async function bootstrap() {
     .setTitle('NestJS auth API') // Set your API title
     .setDescription('API description') // Provide the API description
     .setVersion('1.0') // Set the version
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+    },
+    'access-token') // Add a bearer token for authentication
     // .addTag('users') // Optionally, add tags for better categorization of endpoints
     .build();
 
