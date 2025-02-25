@@ -3,6 +3,7 @@ import { applyDecorators } from '@nestjs/common';
 import { UserUpdateDto } from './users/dto/userUpdate.dto';  
 import { UserCreateDto } from './users/dto/userCreate.dto';  
 import { SignInDto } from './auth/dto/sign-in.dto';
+import { RefreshDto } from './auth/dto/refresh.dto';
 
 // USERS CONTROLLER DECORATORS
 export function GetUsersSwagger(): MethodDecorator {
@@ -64,4 +65,16 @@ export function GetUsersSwagger(): MethodDecorator {
         description: 'User login payload', 
         type: UserCreateDto })
     );
+  }
+
+    export function RefreshTokenSwagger(): MethodDecorator {
+      return applyDecorators(
+        ApiOperation({ summary: 'Reissue access token using Refresh token ' }),
+        ApiResponse({ status: 200, description: 'Access token reissued' }),
+        ApiResponse({ status: 400, description: 'Error: Bad Request' }),
+        ApiResponse({ status: 500, description: 'Internal server error' }),
+        ApiBody({ 
+          description: 'Refresh token payload', 
+          type: RefreshDto })
+      );
   }
