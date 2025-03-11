@@ -18,6 +18,7 @@ export function GetUsersSwagger(): MethodDecorator {
   export function GetUserSwagger(): MethodDecorator {
     return applyDecorators(
       ApiOperation({ summary: 'Get user by ID' }),
+      ApiBearerAuth('access-token'),
       ApiResponse({ status: 200, description: 'User by ID' }),
       ApiResponse({ status: 500, description: 'Internal server error' })
     );
@@ -26,6 +27,7 @@ export function GetUsersSwagger(): MethodDecorator {
   export function UpdateUserSwagger(): MethodDecorator {
     return applyDecorators(
       ApiOperation({ summary: 'Update user by ID' }),
+      ApiBearerAuth('access-token'),
       ApiResponse({ status: 200, description: 'Updated User by ID' }),
       ApiResponse({ status: 400, description: 'Error: Bad Request' }),
       ApiResponse({ status: 500, description: 'Internal server error' }),
@@ -38,6 +40,7 @@ export function GetUsersSwagger(): MethodDecorator {
   export function DeleteUserSwagger(): MethodDecorator {
     return applyDecorators(
       ApiOperation({ summary: 'Delete user by ID' }),
+      ApiBearerAuth('access-token'),
       ApiResponse({ status: 200, description: 'Deleted User by ID' }),
       ApiResponse({ status: 500, description: 'Internal server error' })
     );
