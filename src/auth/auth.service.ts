@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
-import { User } from '../users/users.entity';
+import { UserRole, User } from '../users/users.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserCreateDto } from './../users/dto/userCreate.dto';
@@ -49,18 +49,15 @@ export class AuthService {
 
 
     async create(user: UserCreateDto): Promise<User> {
-        const {username, email, password} = user;
+        const {username, email, password, role} = user;
         const existingUser = await this.usersRepository.findOne({
-            where: [{ username }, { email }]
+            where: [{ username: user.username }, { email: user.email }]
         });
 
         if (existingUser) {
-            if (existingUser.username === username) {
-                throw new BadRequestException('Username already exists');
-            }
-            if (existingUser.email === email) {
-                throw new BadRequestException('Email already exists');
-            }
+            throw new BadRequestException(
+                `User with ${existingUser.username === username ? 'this username' : 'this email'} already exists.`
+            );
         }
 
         // Hash password
@@ -70,6 +67,7 @@ export class AuthService {
             username,
             email,
             password: hashedPassword,
+            role: role || UserRole.USER
         });
 
         return await this.usersRepository.save(newUser);
