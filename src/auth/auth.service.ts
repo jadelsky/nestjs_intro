@@ -26,15 +26,30 @@ export class AuthService {
         if (!isPassValid) {
             throw new UnauthorizedException('Invalid credentials');
         }
-        // generate JWT token
-        const payload = { username: user.username, 
-            sub: user.id,
-            role: user.role
-        };
+
+        const { accessTokenPayload, refreshTokenPayload } = this.buildTokenPayloads(user);
             
-        const access_token = this.generateAccessToken(payload);
-        const refreshToken = this.generateRefreshToken(payload)
+        const access_token = this.generateAccessToken(accessTokenPayload);
+        const refreshToken = this.generateRefreshToken(refreshTokenPayload)
         return {access_token, refreshToken};
+    }
+
+    async refreshTokens(refreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
+        const payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+    });
+
+    const user = await this.usersService.findOneByUsername(payload.username);
+        if (!user) {
+            throw new UnauthorizedException('User not found');
+        }
+
+        const { accessTokenPayload, refreshTokenPayload } = this.buildTokenPayloads(user);
+
+        return {
+            access_token: this.generateAccessToken(accessTokenPayload),
+            refresh_token: this.generateRefreshToken(refreshTokenPayload),
+        };
     }
 
     public generateAccessToken(payload: any) {
@@ -75,5 +90,19 @@ export class AuthService {
         });
 
         return await this.usersRepository.save(newUser);
+    }
+
+    private buildTokenPayloads(user: User) {
+        return {
+        accessTokenPayload: {
+            sub: user.id,
+            username: user.username,
+            role: user.role,
+        },
+        refreshTokenPayload: {
+            sub: user.id,
+            username: user.username,
+        },
+        };
     }
 }
