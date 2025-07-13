@@ -1,6 +1,8 @@
 import { Exclude } from 'class-transformer';
 import { IsEmail } from 'class-validator';
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, BeforeInsert } from 'typeorm';
+import * as crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -10,7 +12,15 @@ export enum UserRole {
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
-  id: number;
+  id: number; // Internal use only
+
+  @Column({ unique: true })
+  publicId: string; // External APIs
+
+  @BeforeInsert()
+  generatePublicId() {
+    this.publicId = uuidv4();
+  }
 
   @Column()
   username: string;

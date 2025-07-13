@@ -7,11 +7,11 @@ import { User } from '../users/users.entity';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
+import { RefreshToken } from './entities/refresh-token.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
-    // forwardRef(() => UsersModule),
     ConfigModule,
     UsersModule,
     PassportModule,
@@ -23,7 +23,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         signOptions: { expiresIn: `${configService.get<string>('JWT_EXPIRATION')}s` },
       }),
     }),
-    TypeOrmModule.forFeature([User])
+    TypeOrmModule.forFeature([User, RefreshToken])
   ],
 
   providers: [AuthService, JwtStrategy],
@@ -31,4 +31,4 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
   exports: [AuthService],
 })
 
-export class AuthModule {}
+export class AuthModule { }
