@@ -7,13 +7,15 @@ import { LoginUserSwagger, RegisterUserSwagger, RefreshTokenSwagger } from './..
 import { UserCreateDto } from './../users/dto/userCreate.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { UsersService } from '../users/users.service';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
     constructor(private authService: AuthService,
       private jwtService: JwtService,
-      private configService: ConfigService
+      private configService: ConfigService,
+      private userService: UsersService
     ) {}
 
     @LoginUserSwagger()
@@ -34,18 +36,9 @@ export class AuthController {
     @Post('refresh')
     async refresh(@Body('refresh_token') refreshToken: string) {
       try {
-        const payload = this.jwtService.verify(refreshToken, {
-          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        });
-  
-        return {
-          access_token: this.authService.generateAccessToken({
-            sub: payload.sub,
-            username: payload.username,
-          }),
-        };
+        return await this.authService.refreshTokens(refreshToken);
       } catch (err) {
-        throw new UnauthorizedException('Invalid or expired refresh token');
+          throw new UnauthorizedException('Invalid or expired refresh token');
       }
     }
 }
