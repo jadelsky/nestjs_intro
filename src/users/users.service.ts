@@ -27,6 +27,37 @@ export class UsersService {
         return this.usersRepository.findOne({ where: { username } });
     }
 
+    async findOneByIdOrPublicId(idOrPublicId: string): Promise<User | null> {
+        if (/^\d+$/.test(idOrPublicId)) {
+        return this.usersRepository.findOne({ where: { id: +idOrPublicId } });
+        } else {
+        return this.usersRepository.findOne({ where: { publicId: idOrPublicId } });
+        }
+    }
+
+    async updateByAnyId(idOrPublicId: string,user: Partial<UserUpdateDto>): Promise<object> {
+        const existingUser = await this.findOneByIdOrPublicId(idOrPublicId);
+        if (!existingUser) {
+            throw new NotFoundException(`User with id ${idOrPublicId} not found`);
+        }
+
+        if (user.password) {
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(user.password, salt);
+        }
+
+        await this.usersRepository.update(existingUser.id, user);
+        const updatedUser = await this.usersRepository.findOne({
+        where: { id: existingUser.id },
+        });
+
+        return instanceToPlain(updatedUser); // Optionally use instanceToPlain(updatedUser)
+    }
+
+    async updateByPublicId(publicId: string, user: Partial<UserUpdateDto>): Promise<object> {
+        return this.updateByAnyId(publicId, user);
+    }
+
     async update(id: number, user: UserUpdateDto): Promise<object> {
         const existingUser = await this.usersRepository.findOne({ where: { id } });
         

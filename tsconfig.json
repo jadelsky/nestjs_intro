@@ -20,5 +20,9 @@
   },
   "watchOptions": {
     "watchFile": "fixedPollingInterval"
-  }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/types/**/*.d.ts"
+  ],
 }

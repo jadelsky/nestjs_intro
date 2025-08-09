@@ -172,6 +172,7 @@ export class AuthService {
                 sub: user.id,
                 username: user.username,
                 role: user.role,
+                publicId: user.publicId,
             },
             refreshTokenPayload: {
                 sub: user.id,
