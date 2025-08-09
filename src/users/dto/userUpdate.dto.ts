@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsOptional } from 'class-validator';
+import { UserRole } from '../users.entity';
 
 export class UserUpdateDto {
   @IsOptional()
@@ -14,4 +15,8 @@ export class UserUpdateDto {
   @IsEmail({}, { message: 'Provided email has the wrong format' })
   @ApiProperty({ example: 'john@example.com' })
   email?: string;
+
+  @IsOptional()
+  @ApiProperty({ example: 'user' })
+  role?: UserRole;
 }

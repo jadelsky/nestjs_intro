@@ -1,4 +1,4 @@
-import { Controller, Get, Body, Param, Delete, Put, NotFoundException, UsePipes, ValidationPipe, UseGuards  } from '@nestjs/common';
+import { Controller, Get, Body, Param, Delete, Patch, NotFoundException, UsePipes, ValidationPipe, UseGuards  } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { ApiTags } from '@nestjs/swagger';
 import { DeleteUserSwagger, GetUsersSwagger, GetUserSwagger, UpdateUserSwagger } from './../swagger.decorator';
@@ -36,7 +36,7 @@ export class UsersController {
 
     @UseGuards(JwtAuthGuard)
     @Roles('admin')
-    @Put(':id')
+    @Patch(':id')
     @UpdateUserSwagger()
     async update(@Param('id') id: string, @Body() user: UserUpdateDto): Promise<object> {
         return this.usersService.update(+id, user);

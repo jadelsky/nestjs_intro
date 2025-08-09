@@ -48,6 +48,10 @@ export class UsersService {
             updatedData.email = user.email;
         }
 
+        if (user.role) {
+            updatedData.role = user.role;
+        }
+
         if (Object.keys(updatedData).length === 0) {
             throw new BadRequestException('No data provided to update');
         }

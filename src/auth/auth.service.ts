@@ -9,6 +9,7 @@ import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { UserRegisterDto } from 'src/users/dto/userRegister.dto';
 
 @Injectable()
 export class AuthService {
@@ -135,8 +136,8 @@ export class AuthService {
     }
 
 
-    async create(user: UserCreateDto): Promise<User> {
-        const { username, email, password, role } = user;
+    async create(user: UserCreateDto): Promise<UserRegisterDto> {
+        const { username, email, password } = user;
         const existingUser = await this.usersRepository.findOne({
             where: [{ username: user.username }, { email: user.email }]
         });
@@ -154,10 +155,15 @@ export class AuthService {
             username,
             email,
             password: hashedPassword,
-            role: role || UserRole.USER
+            role: UserRole.USER
         });
 
-        return await this.usersRepository.save(newUser);
+        const savedUser = await this.usersRepository.save(newUser);
+
+        return {
+            username: savedUser.username,
+            email: savedUser.email,
+        };
     }
 
     private buildTokenPayloads(user: User) {

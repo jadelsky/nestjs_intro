@@ -8,6 +8,7 @@ import { UserCreateDto } from './../users/dto/userCreate.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
+import { UserRegisterDto } from '../users/dto/userRegister.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -28,7 +29,7 @@ export class AuthController {
 
     @RegisterUserSwagger()
     @Post('register')
-    async create(@Body() user: UserCreateDto): Promise<User> {
+    async create(@Body() user: UserCreateDto): Promise<UserRegisterDto> {
         return this.authService.create(user);
     }
 
