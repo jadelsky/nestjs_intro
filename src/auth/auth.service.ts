@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { UserRole, User } from '../users/users.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UserRegisterDto } from 'src/users/dto/userRegister.dto';
+import { EmailService } from './email.service';
 
 @Injectable()
 export class AuthService {
@@ -18,8 +19,9 @@ export class AuthService {
         private usersRepository: Repository<User>,
         private jwtService: JwtService,
         private configService: ConfigService,
-        @InjectRepository(RefreshToken) 
-        private refreshTokenRepository: Repository<RefreshToken>
+        @InjectRepository(RefreshToken)
+        private refreshTokenRepository: Repository<RefreshToken>,
+        private readonly emailService: EmailService,
     ) { }
 
     async signIn(username: string, pass: string, deviceInfo?: string): Promise<any> {
@@ -30,6 +32,13 @@ export class AuthService {
         const isPassValid = await bcrypt.compare(pass, user.password);
         if (!isPassValid) {
             throw new UnauthorizedException('Invalid credentials');
+        }
+
+        if (user.role !== UserRole.ADMIN && !user.emailVerified) {
+            throw new ForbiddenException({
+                message: 'Email not verified. Please verify your email before logging in.',
+                canResend: true,
+            });
         }
 
         const { accessTokenPayload } = this.buildTokenPayloads(user);
@@ -88,7 +97,7 @@ export class AuthService {
         // Generate new refresh token and revoke the old one
         const newRefreshToken = await this.generateOpaqueRefreshToken(user.id, tokenEntity.deviceInfo);
         await this.revokeRefreshToken(refreshToken); // Revoke old token
-        
+
         return { access_token, refreshToken: newRefreshToken };
     }
 
@@ -135,8 +144,14 @@ export class AuthService {
         });
     }
 
+    public generateEmailVerificationToken(payload: any) {
+        return this.jwtService.sign(payload, {
+            secret: this.configService.get<string>('EMAIL_VERIFICATION_SECRET'),
+            expiresIn: '24h', // or use config if you want
+        });
+    }
 
-    async create(user: UserCreateDto): Promise<UserRegisterDto> {
+    async create(user: UserCreateDto): Promise<{ message: string }> {
         const { username, email, password } = user;
         const existingUser = await this.usersRepository.findOne({
             where: [{ username: user.username }, { email: user.email }]
@@ -155,14 +170,24 @@ export class AuthService {
             username,
             email,
             password: hashedPassword,
-            role: UserRole.USER
+            role: UserRole.USER,
+            emailVerified: false
         });
 
         const savedUser = await this.usersRepository.save(newUser);
 
+        const { emailVerificationPayload } = this.buildTokenPayloads(savedUser);
+
+        const emailVerificationToken = this.generateEmailVerificationToken(emailVerificationPayload);
+
+        // Build verification link
+        const verifyUrl = `${process.env.BACKEND_URL}/auth/verify-email?token=${encodeURIComponent(emailVerificationToken)}`;
+
+        // Send verification email
+        await this.emailService.sendVerificationEmail(savedUser.email, verifyUrl);
+
         return {
-            username: savedUser.username,
-            email: savedUser.email,
+            message: 'Registration successful. Please check your email to verify your account.',
         };
     }
 
@@ -178,6 +203,40 @@ export class AuthService {
                 sub: user.id,
                 username: user.username,
             },
+            emailVerificationPayload: {
+                sub: user.id
+            },
         };
+    }
+
+    async verifyEmailToken(token: string): Promise<string> {
+        try {
+            const payload = this.jwtService.verify(token, {
+                secret: this.configService.get<string>('EMAIL_VERIFICATION_SECRET'),
+            });
+            const userId = payload.sub;
+
+            const user = await this.usersRepository.findOne({ where: { id: userId } });
+            
+            if (!user) {
+                throw new NotFoundException('User not found');
+            }
+
+            if (user.emailVerified) {
+                return 'Email already verified';
+            }
+
+            user.emailVerified = true;
+            await this.usersRepository.save(user);
+
+            const updatedUser = await this.usersRepository.findOne({ where: { id: userId } });
+            if (!updatedUser) {
+                throw new NotFoundException('User not found after update');
+            }
+
+            return 'Email verified successfully';
+        } catch (error) {
+            throw new BadRequestException('Invalid or expired token');
+        }
     }
 }

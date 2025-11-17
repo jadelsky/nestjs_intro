@@ -1,7 +1,6 @@
 services:
   nestapp:
     container_name: nestapp
-    image: jadelsky/nestapp:1.0.0
     build: .
     ports:
       - "3000:3000"
@@ -13,9 +12,9 @@ services:
       - PG_DB=postgres
       - PG_PORT=5432
     volumes:
-      - .:/usr/src/app  # Sync local files with the container (hot reload)
-      - /usr/src/app/node_modules  # Prevents overwriting node_modules
-    command: npm run start:dev  # Start in development mode with hot reload
+      - .:/usr/src/app
+      - node_modules:/usr/src/app/node_modules
+    command: npm run start:dev
     depends_on:
       - db
 
@@ -33,3 +32,4 @@ services:
 
 volumes:
   pgdata: {}
+  node_modules: {}
