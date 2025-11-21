@@ -251,19 +251,17 @@ export class AuthService {
 
     async resendVerificationEmail(email: string) {
         const user = await this.usersRepository.findOne({ where: { email } });
-        if (!user) throw new NotFoundException('User not found');
 
-        if (user.emailVerified) {
-            return { message: 'Email already verified' };
+        // If user exists and is not verified, send verification email
+        if (user && !user.emailVerified) {
+            const { emailVerificationPayload } = this.buildTokenPayloads(user);
+            const newToken = this.generateEmailVerificationToken(emailVerificationPayload);
+
+            const verifyUrl = `${this.configService.get('BACKEND_URL')}/auth/verify-email?token=${newToken}`;
+
+            await this.emailService.sendVerificationEmail(user.email, verifyUrl);
         }
 
-        const { emailVerificationPayload } = this.buildTokenPayloads(user);
-        const newToken = this.generateEmailVerificationToken(emailVerificationPayload);
-
-        const verifyUrl = `${this.configService.get('BACKEND_URL')}/auth/verify-email?token=${newToken}`;
-
-        await this.emailService.sendVerificationEmail(user.email, verifyUrl);
-
-        return { message: 'Verification email resent' };
+        return { message: 'If an account with this email exists, a verification email has been sent.' };
     }
 }
