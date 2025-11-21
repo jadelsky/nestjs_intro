@@ -4,6 +4,7 @@ import { UserUpdateDto } from './users/dto/userUpdate.dto';
 import { UserCreateDto } from './users/dto/userCreate.dto';
 import { SignInDto } from './auth/dto/sign-in.dto';
 import { RefreshDto } from './auth/dto/refresh.dto';
+import { ResendVerificationDto } from './auth/dto/resend-verification.dto';
 
 // USERS CONTROLLER DECORATORS
 export function GetUsersSwagger(): MethodDecorator {
@@ -86,13 +87,30 @@ export function RefreshTokenSwagger(): MethodDecorator {
   );
 }
 
-  export function VerifyEmailSwagger(): MethodDecorator {
-    return applyDecorators(
-      ApiOperation({ summary: 'Verify user email using verification token' }),
-      ApiQuery({ name: 'token', description: 'Email verification JWT token', required: true }),
-      ApiResponse({ status: 200, description: 'Email verified successfully' }),
-      ApiResponse({ status: 400, description: 'Invalid or expired token' }),
-      ApiResponse({ status: 404, description: 'User not found' }),
-      ApiResponse({ status: 500, description: 'Internal server error' }),
-    );
-  }
+export function VerifyEmailSwagger(): MethodDecorator {
+  return applyDecorators(
+    ApiOperation({ summary: 'Verify user email using verification token' }),
+    ApiQuery({ name: 'token', description: 'Email verification JWT token', required: true }),
+    ApiResponse({ status: 200, description: 'Email verified successfully' }),
+    ApiResponse({ status: 400, description: 'Invalid or expired token' }),
+    ApiResponse({ status: 404, description: 'User not found' }),
+    ApiResponse({ status: 500, description: 'Internal server error' }),
+  );
+}
+
+export function ResendVerificationEmailSwagger(): MethodDecorator {
+  return applyDecorators(
+    ApiOperation({ summary: 'Resend email verification link to user' }),
+
+    ApiBody({
+      description: 'Email of the user requesting a new verification token',
+      type: ResendVerificationDto 
+    }),
+
+    ApiResponse({ status: 200, description: 'Verification email sent successfully' }),
+    ApiResponse({ status: 400, description: 'Invalid request or email already verified' }),
+    ApiResponse({ status: 404, description: 'User not found'}),
+    ApiResponse({ status: 429, description: 'Too many resend attempts (rate limited)'}),
+    ApiResponse({ status: 500, description: 'Internal server error'}),
+  );
+}

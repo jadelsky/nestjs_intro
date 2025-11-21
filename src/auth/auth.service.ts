@@ -9,7 +9,6 @@ import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { UserRegisterDto } from 'src/users/dto/userRegister.dto';
 import { EmailService } from './email.service';
 
 @Injectable()
@@ -147,7 +146,7 @@ export class AuthService {
     public generateEmailVerificationToken(payload: any) {
         return this.jwtService.sign(payload, {
             secret: this.configService.get<string>('EMAIL_VERIFICATION_SECRET'),
-            expiresIn: '24h', // or use config if you want
+            expiresIn: `${this.configService.get<string>('EMAIL_VERIFICATION_EXPIRATION')}d`
         });
     }
 
@@ -209,7 +208,7 @@ export class AuthService {
         };
     }
 
-    async verifyEmailToken(token: string): Promise<string> {
+    async verifyEmailToken(token: string): Promise<any> {
         try {
             const payload = this.jwtService.verify(token, {
                 secret: this.configService.get<string>('EMAIL_VERIFICATION_SECRET'),
@@ -217,7 +216,7 @@ export class AuthService {
             const userId = payload.sub;
 
             const user = await this.usersRepository.findOne({ where: { id: userId } });
-            
+
             if (!user) {
                 throw new NotFoundException('User not found');
             }
@@ -236,7 +235,35 @@ export class AuthService {
 
             return 'Email verified successfully';
         } catch (error) {
-            throw new BadRequestException('Invalid or expired token');
+            if (error.name === 'TokenExpiredError') {
+                return {
+                    message: 'Verification token expired',
+                    canResend: true,
+                };
+            }
+
+            throw new BadRequestException({
+                message: 'Unable to verify token',
+                canResend: false,
+            });
         }
+    }
+
+    async resendVerificationEmail(email: string) {
+        const user = await this.usersRepository.findOne({ where: { email } });
+        if (!user) throw new NotFoundException('User not found');
+
+        if (user.emailVerified) {
+            return { message: 'Email already verified' };
+        }
+
+        const { emailVerificationPayload } = this.buildTokenPayloads(user);
+        const newToken = this.generateEmailVerificationToken(emailVerificationPayload);
+
+        const verifyUrl = `${this.configService.get('BACKEND_URL')}/auth/verify-email?token=${newToken}`;
+
+        await this.emailService.sendVerificationEmail(user.email, verifyUrl);
+
+        return { message: 'Verification email resent' };
     }
 }

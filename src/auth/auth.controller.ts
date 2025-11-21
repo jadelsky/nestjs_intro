@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
 import { User } from './../users/users.entity';
 import { ApiTags } from '@nestjs/swagger';
-import { LoginUserSwagger, RegisterUserSwagger, RefreshTokenSwagger, VerifyEmailSwagger } from './../swagger.decorator';
+import { LoginUserSwagger, RegisterUserSwagger, RefreshTokenSwagger, VerifyEmailSwagger, ResendVerificationEmailSwagger } from './../swagger.decorator';
 import { UserCreateDto } from './../users/dto/userCreate.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -49,5 +49,11 @@ export class AuthController {
     token = decodeURIComponent(token);
     const message = await this.authService.verifyEmailToken(token);
     return { message };
+  }
+
+  @ResendVerificationEmailSwagger()
+  @Post('resend-verification')
+  async resendVerification(@Body('email') email: string) {
+    return this.authService.resendVerificationEmail(email);
   }
 }
