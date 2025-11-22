@@ -1,14 +1,15 @@
 import { Body, Controller, Get, Post, HttpCode, HttpStatus, Query, UsePipes, ValidationPipe, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
-import { User } from './../users/users.entity';
 import { ApiTags } from '@nestjs/swagger';
-import { LoginUserSwagger, RegisterUserSwagger, RefreshTokenSwagger, VerifyEmailSwagger, ResendVerificationEmailSwagger } from './../swagger.decorator';
+import { LoginUserSwagger, RegisterUserSwagger, RefreshTokenSwagger, VerifyEmailSwagger, ResendVerificationEmailSwagger, ForgotPasswordSwagger, ResetPasswordSwagger, DenyUsernameResetSwagger } from './../swagger.decorator';
 import { UserCreateDto } from './../users/dto/userCreate.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
-import { UserRegisterDto } from '../users/dto/userRegister.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { DenyUsernameResetDto } from './dto/deny-username-reset.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -55,5 +56,23 @@ export class AuthController {
   @Post('resend-verification')
   async resendVerification(@Body('email') email: string) {
     return this.authService.resendVerificationEmail(email);
+  }
+  
+  @Post('forgot-password')
+  @ForgotPasswordSwagger()
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('deny-username-reset')
+  @DenyUsernameResetSwagger()
+  async denyUsernameReset(@Body() dto: DenyUsernameResetDto) {
+    return this.authService.denyUsernameReset(dto.token);
+  }
+
+  @Post('reset-password')
+  @ResetPasswordSwagger()
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

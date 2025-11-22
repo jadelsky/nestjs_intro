@@ -10,6 +10,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { EmailService } from './email.service';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -150,6 +152,20 @@ export class AuthService {
         });
     }
 
+    public generatePasswordResetToken(payload: any) {
+        return this.jwtService.sign(payload, {
+            secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
+            expiresIn: `${this.configService.get<string>('PASSWORD_RESET_EXPIRATION')}h`
+        });
+    }
+
+        public generateDenyUsernameResetToken(payload: any) {
+        return this.jwtService.sign(payload, {
+            secret: this.configService.get<string>('PASSWORD_RESET_DENY_SECRET'),
+            expiresIn: `${this.configService.get<string>('PASSWORD_RESET_DENY_EXPIRATION')}h`
+        });
+    }
+
     async create(user: UserCreateDto): Promise<{ message: string }> {
         const { username, email, password } = user;
         const existingUser = await this.usersRepository.findOne({
@@ -203,6 +219,9 @@ export class AuthService {
                 username: user.username,
             },
             emailVerificationPayload: {
+                sub: user.id
+            },
+            passwordResetPayload: {
                 sub: user.id
             },
         };
@@ -263,5 +282,106 @@ export class AuthService {
         }
 
         return { message: 'If an account with this email exists, a verification email has been sent.' };
+    }
+
+    async forgotPassword(dto: ForgotPasswordDto) {
+        const { email, username } = dto;
+
+        const identifier = email ?? username;
+
+        // Always prepare generic response to avoid user enumeration
+        const genericResponse = {
+            message: 'If an account exists, a password reset email has been sent.',
+        };
+
+        const user = await this.usersRepository.findOne({
+            where: [{ email: identifier }, { username: identifier }],
+        });
+
+        if (!user) return genericResponse;
+
+        if (!user.emailVerified) return genericResponse;
+
+        const identifierIsUsername = identifier === user.username;
+
+        if (identifierIsUsername && user.allowUsernameReset === false) {
+            return genericResponse;
+        }
+
+        // Generate secure JWT reset token
+        const { passwordResetPayload } = this.buildTokenPayloads(user);
+        const resetToken = this.generatePasswordResetToken(passwordResetPayload);
+        const resetUrl = `${this.configService.get<string>('BACKEND_URL')}/auth/reset-password?token=${resetToken}`;
+
+        let denyUrl: string | undefined;
+
+        // Generate deny-username-reset token and URL if identifier is username
+        if (identifierIsUsername) {
+            const denyToken = this.generateDenyUsernameResetToken({ sub: user.id });
+            denyUrl = `${this.configService.get<string>('BACKEND_URL')}/auth/deny-username-reset?token=${denyToken}`;
+        }
+
+        // Send password reset email with resetUrl and optional denyUrl
+        await this.emailService.sendPasswordResetEmail(user.email, resetUrl, denyUrl);
+
+        // If reset was initiated using username → return masked email for UX
+        if (identifierIsUsername) {
+            return {
+                message: genericResponse.message,
+                maskedEmail: this.emailService.maskEmail(user.email),
+            };
+        }
+
+        // Otherwise (email used) → return generic response only
+        return genericResponse;
+    }
+
+    async denyUsernameReset(token: string) {
+        try {
+            const payload = this.jwtService.verify(token, {
+                secret: this.configService.get<string>('PASSWORD_RESET_DENY_SECRET'),
+            });
+
+            const user = await this.usersRepository.findOne({
+                where: { id: payload.sub },
+            });
+
+            if (!user) throw new NotFoundException();
+
+            user.allowUsernameReset = false;
+            await this.usersRepository.save(user);
+
+            return { message: 'Username-based password reset disabled.' };
+        } catch (err) {
+            throw new BadRequestException('Invalid or expired token');
+        }
+    }
+
+    async resetPassword(dto: ResetPasswordDto) {
+        const { token, newPassword, confirmPassword } = dto;
+
+        if (newPassword !== confirmPassword) {
+            throw new BadRequestException('Passwords do not match');
+        }
+
+        let payload;
+        try {
+            payload = this.jwtService.verify(token, {
+                secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
+            });
+        } catch (e) {
+            throw new BadRequestException('Invalid or expired token');
+        }
+
+        const user = await this.usersRepository.findOne({
+            where: { id: payload.sub },
+        });
+
+        if (!user) throw new NotFoundException('User not found');
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await this.usersRepository.save(user);
+
+        return { message: 'Password updated successfully' };
     }
 }

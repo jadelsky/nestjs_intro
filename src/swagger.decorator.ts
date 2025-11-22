@@ -5,6 +5,9 @@ import { UserCreateDto } from './users/dto/userCreate.dto';
 import { SignInDto } from './auth/dto/sign-in.dto';
 import { RefreshDto } from './auth/dto/refresh.dto';
 import { ResendVerificationDto } from './auth/dto/resend-verification.dto';
+import { ForgotPasswordDto } from './auth/dto/forgot-password.dto';
+import { DenyUsernameResetDto } from './auth/dto/deny-username-reset.dto';
+import { ResetPasswordDto } from './auth/dto/reset-password.dto';
 
 // USERS CONTROLLER DECORATORS
 export function GetUsersSwagger(): MethodDecorator {
@@ -104,13 +107,47 @@ export function ResendVerificationEmailSwagger(): MethodDecorator {
 
     ApiBody({
       description: 'Email of the user requesting a new verification token',
-      type: ResendVerificationDto 
+      type: ResendVerificationDto
     }),
 
     ApiResponse({ status: 200, description: 'Verification email sent successfully' }),
     ApiResponse({ status: 400, description: 'Invalid request or email already verified' }),
-    ApiResponse({ status: 404, description: 'User not found'}),
-    ApiResponse({ status: 429, description: 'Too many resend attempts (rate limited)'}),
-    ApiResponse({ status: 500, description: 'Internal server error'}),
+    ApiResponse({ status: 404, description: 'User not found' }),
+    ApiResponse({ status: 429, description: 'Too many resend attempts (rate limited)' }),
+    ApiResponse({ status: 500, description: 'Internal server error' }),
+  );
+}
+
+export function ForgotPasswordSwagger(): MethodDecorator {
+  return applyDecorators(
+    ApiOperation({ summary: 'Initiate forgotten password flow using email or username' }),
+    ApiBody({
+      description: 'Identifier can be email or username',
+      type: ForgotPasswordDto,
+    }),
+    ApiResponse({ status: 200, description: 'Reset email sent if account exists' }),
+  );
+}
+
+export function DenyUsernameResetSwagger(): MethodDecorator {
+  return applyDecorators(
+    ApiOperation({ summary: 'Disable username-based password reset (link sent in email)' }),
+    ApiBody({
+      type: DenyUsernameResetDto,
+    }),
+    ApiResponse({ status: 200, description: 'Username reset disabled' }),
+    ApiResponse({ status: 400, description: 'Invalid or expired token' }),
+  );
+}
+
+export function ResetPasswordSwagger(): MethodDecorator {
+  return applyDecorators(
+    ApiOperation({ summary: 'Complete password reset using reset token' }),
+    ApiBody({
+      description: 'Token + new password fields',
+      type: ResetPasswordDto,
+    }),
+    ApiResponse({ status: 200, description: 'Password updated successfully' }),
+    ApiResponse({ status: 400, description: 'Invalid token or invalid payload' }),
   );
 }
