@@ -132,37 +132,47 @@ export class AuthService {
     }
 
     public generateAccessToken(payload: any) {
+        const expirationHours = this.configService.get<string>('JWT_EXPIRATION');
+
         return this.jwtService.sign(payload, {
             secret: this.configService.get<string>('JWT_SECRET'),
-            expiresIn: `${this.configService.get<string>('JWT_EXPIRATION')}h`, // Short-lived access token
+            expiresIn: `${Number(expirationHours)}h`,
         });
     }
 
     public generateRefreshToken(payload: any) {
+        const expirationDays = this.configService.get<string>('REFRESH_EXPIRATION');
+
         return this.jwtService.sign(payload, {
             secret: this.configService.get<string>('REFRESH_SECRET'),
-            expiresIn: `${this.configService.get<string>('REFRESH_EXPIRATION')}d`
+            expiresIn: `${Number(expirationDays)}d`,
         });
     }
 
     public generateEmailVerificationToken(payload: any) {
+        const expirationDays = this.configService.get<string>('EMAIL_VERIFICATION_EXPIRATION');
+
         return this.jwtService.sign(payload, {
             secret: this.configService.get<string>('EMAIL_VERIFICATION_SECRET'),
-            expiresIn: `${this.configService.get<string>('EMAIL_VERIFICATION_EXPIRATION')}d`
+            expiresIn: `${Number(expirationDays)}d`,
         });
     }
 
     public generatePasswordResetToken(payload: any) {
+        const expirationHours = this.configService.get<string>('PASSWORD_RESET_EXPIRATION');
+
         return this.jwtService.sign(payload, {
             secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
-            expiresIn: `${this.configService.get<string>('PASSWORD_RESET_EXPIRATION')}h`
+            expiresIn: `${Number(expirationHours)}h`,
         });
     }
 
-        public generateDenyUsernameResetToken(payload: any) {
+    public generateDenyUsernameResetToken(payload: any) {
+        const expirationHours = this.configService.get<string>('PASSWORD_RESET_DENY_EXPIRATION');
+
         return this.jwtService.sign(payload, {
             secret: this.configService.get<string>('PASSWORD_RESET_DENY_SECRET'),
-            expiresIn: `${this.configService.get<string>('PASSWORD_RESET_DENY_EXPIRATION')}h`
+            expiresIn: `${Number(expirationHours)}h`,
         });
     }
 
