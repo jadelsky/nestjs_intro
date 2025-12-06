@@ -20,8 +20,7 @@ import { EmailService } from './email.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        expiresIn: `${configService.get<number>('JWT_EXPIRATION')}s`,
+        secret: configService.getOrThrow<string>('JWT_SECRET'),
       }),
     }),
     TypeOrmModule.forFeature([User, RefreshToken])

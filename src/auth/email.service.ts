@@ -1,73 +1,60 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as Handlebars from 'handlebars';
 
 @Injectable()
 export class EmailService {
-  private transporter;
+  private verificationTemplate: Handlebars.TemplateDelegate;
+  private resetTemplate: Handlebars.TemplateDelegate;
 
-  constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('SMTP_HOST'),
-      port: Number(this.configService.get<string>('SMTP_PORT')),
-      secure: false, // true for port 465, false for others
+  constructor(private readonly configService: ConfigService) {
+    this.verificationTemplate = this.loadAndCompileTemplate('verification-email.hbs');
+    this.resetTemplate = this.loadAndCompileTemplate('password-reset-email.hbs');
+  }
+
+  private loadAndCompileTemplate(templateName: string): Handlebars.TemplateDelegate {
+    const templatePath = path.resolve(__dirname, '../mail/templates', templateName);
+    const templateSource = fs.readFileSync(templatePath, 'utf8');
+    return Handlebars.compile(templateSource);
+  }
+
+  private get transporter() {
+    const port = this.configService.getOrThrow<number>('SMTP_PORT');
+    return nodemailer.createTransport({
+      host: this.configService.getOrThrow<string>('SMTP_HOST'),
+      port,
+      secure: port === 465,
       auth: {
-        user: this.configService.get<string>('SMTP_USER'),
-        pass: this.configService.get<string>('SMTP_PASS'),
+        user: this.configService.getOrThrow<string>('SMTP_USER'),
+        pass: this.configService.getOrThrow<string>('SMTP_PASS'),
       },
     });
   }
 
   async sendVerificationEmail(to: string, verificationUrl: string) {
+    const html = this.verificationTemplate({ verificationUrl });
+
     await this.transporter.sendMail({
-      from: this.configService.get<string>('MAIL_FROM'),
+      from: this.configService.getOrThrow<string>('MAIL_FROM'),
       to,
       subject: 'Please verify your email',
-      html: `
-        <p>Thanks for registering!</p>
-        <p>Please verify your email by clicking the link below:</p>
-        <a href="${verificationUrl}">${verificationUrl}</a>
-      `,
+      html,
     });
   }
 
   async sendPasswordResetEmail(to: string, resetUrl: string, denyUrl?: string) {
+    const html = this.resetTemplate({ resetUrl, denyUrl });
+
     await this.transporter.sendMail({
-      from: this.configService.get<string>('MAIL_FROM'),
+      from: this.configService.getOrThrow<string>('MAIL_FROM'),
       to,
       subject: 'Reset Your Password',
-      html: `
-      <p>Hello,</p>
-
-      <p>We received a request to reset your password. You can choose a new one by clicking the link below:</p>
-
-      <p>
-        <a href="${resetUrl}" style="font-weight: bold; color: #3b82f6;">
-          Reset your password
-        </a>
-      </p>
-
-      <p>If you did not request a password reset, you can safely ignore this email.</p>
-
-      ${denyUrl
-          ? `
-        <p style="margin-top: 20px; color: #555;">
-          Didn’t request this at all?  
-          <a href="${denyUrl}" style="color: #ef4444;">
-            Disable password reset via username
-          </a>
-        </p>
-      `
-          : ''
-        }
-
-      <p style="margin-top: 30px; font-size: 12px; color: #999;">
-        This link will expire in 1 hour.
-      </p>
-    `,
+      html,
     });
   }
-
 
   public maskEmail(email: string): string {
     const [local, domain] = email.split('@');
@@ -77,5 +64,4 @@ export class EmailService {
 
     return `${maskedLocal}@${domain}`;
   }
-
 }

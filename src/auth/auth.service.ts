@@ -12,6 +12,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { EmailService } from './email.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { toSeconds } from '../utils/time.helper';
 
 @Injectable()
 export class AuthService {
@@ -132,47 +133,42 @@ export class AuthService {
     }
 
     public generateAccessToken(payload: any) {
-        const expirationHours = this.configService.get<string>('JWT_EXPIRATION');
-
+        const expirationHours = this.configService.getOrThrow<number>('JWT_EXPIRATION');
         return this.jwtService.sign(payload, {
-            secret: this.configService.get<string>('JWT_SECRET'),
-            expiresIn: `${Number(expirationHours)}h`,
+            secret: this.configService.getOrThrow<string>('JWT_SECRET'),
+            expiresIn: toSeconds(expirationHours, 'h'),
         });
     }
 
     public generateRefreshToken(payload: any) {
-        const expirationDays = this.configService.get<string>('REFRESH_EXPIRATION');
-
+        const expirationDays = this.configService.getOrThrow<number>('REFRESH_EXPIRATION');
         return this.jwtService.sign(payload, {
-            secret: this.configService.get<string>('REFRESH_SECRET'),
-            expiresIn: `${Number(expirationDays)}d`,
+            secret: this.configService.getOrThrow<string>('REFRESH_SECRET'),
+            expiresIn: toSeconds(expirationDays, 'd'),
         });
     }
 
     public generateEmailVerificationToken(payload: any) {
-        const expirationDays = this.configService.get<string>('EMAIL_VERIFICATION_EXPIRATION');
-
+        const expirationDays = this.configService.getOrThrow<number>('EMAIL_VERIFICATION_EXPIRATION');
         return this.jwtService.sign(payload, {
-            secret: this.configService.get<string>('EMAIL_VERIFICATION_SECRET'),
-            expiresIn: `${Number(expirationDays)}d`,
+            secret: this.configService.getOrThrow<string>('EMAIL_VERIFICATION_SECRET'),
+            expiresIn: toSeconds(expirationDays, 'd'),
         });
     }
 
     public generatePasswordResetToken(payload: any) {
-        const expirationHours = this.configService.get<string>('PASSWORD_RESET_EXPIRATION');
-
+        const expirationHours = this.configService.getOrThrow<number>('PASSWORD_RESET_EXPIRATION');
         return this.jwtService.sign(payload, {
-            secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
-            expiresIn: `${Number(expirationHours)}h`,
+            secret: this.configService.getOrThrow<string>('PASSWORD_RESET_SECRET'),
+            expiresIn: toSeconds(expirationHours, 'h'),
         });
     }
 
     public generateDenyUsernameResetToken(payload: any) {
-        const expirationHours = this.configService.get<string>('PASSWORD_RESET_DENY_EXPIRATION');
-
+        const expirationHours = this.configService.getOrThrow<number>('PASSWORD_RESET_DENY_EXPIRATION');
         return this.jwtService.sign(payload, {
-            secret: this.configService.get<string>('PASSWORD_RESET_DENY_SECRET'),
-            expiresIn: `${Number(expirationHours)}h`,
+            secret: this.configService.getOrThrow<string>('PASSWORD_RESET_DENY_SECRET'),
+            expiresIn: toSeconds(expirationHours, 'h'),
         });
     }
 
@@ -240,7 +236,7 @@ export class AuthService {
     async verifyEmailToken(token: string): Promise<any> {
         try {
             const payload = this.jwtService.verify(token, {
-                secret: this.configService.get<string>('EMAIL_VERIFICATION_SECRET'),
+                secret: this.configService.getOrThrow<string>('EMAIL_VERIFICATION_SECRET'),
             });
             const userId = payload.sub;
 
@@ -349,7 +345,7 @@ export class AuthService {
     async denyUsernameReset(token: string) {
         try {
             const payload = this.jwtService.verify(token, {
-                secret: this.configService.get<string>('PASSWORD_RESET_DENY_SECRET'),
+                secret: this.configService.getOrThrow<string>('PASSWORD_RESET_DENY_SECRET'),
             });
 
             const user = await this.usersRepository.findOne({
@@ -377,7 +373,7 @@ export class AuthService {
         let payload;
         try {
             payload = this.jwtService.verify(token, {
-                secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
+                secret: this.configService.getOrThrow<string>('PASSWORD_RESET_SECRET'),
             });
         } catch (e) {
             throw new BadRequestException('Invalid or expired token');
