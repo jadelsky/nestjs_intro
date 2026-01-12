@@ -25,6 +25,12 @@ async function bootstrap() {
   
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
   
+  // Enable CORS with options (allow your frontend origin)
+  app.enableCors({
+    origin: 'http://localhost:5173', // frontend dev server URL
+    credentials: true, // allow cookies if you use them
+  });
+
   await app.listen(process.env.PORT ?? 3000);
 
 }
