@@ -45,9 +45,9 @@ export class AuthService {
 
         const { accessTokenPayload } = this.buildTokenPayloads(user);
 
-        const access_token = this.generateAccessToken(accessTokenPayload);
+        const accessToken = this.generateAccessToken(accessTokenPayload);
         const refreshToken = await this.generateOpaqueRefreshToken(user.id, deviceInfo);
-        return { access_token, refreshToken };
+        return { accessToken, refreshToken };
     }
 
     private async generateOpaqueRefreshToken(userId: number, deviceInfo?: string): Promise<string> {
@@ -94,13 +94,13 @@ export class AuthService {
         const user = tokenEntity.user;
         const { accessTokenPayload } = this.buildTokenPayloads(user);
 
-        const access_token = this.generateAccessToken(accessTokenPayload);
+        const accessToken = this.generateAccessToken(accessTokenPayload);
 
         // Generate new refresh token and revoke the old one
         const newRefreshToken = await this.generateOpaqueRefreshToken(user.id, tokenEntity.deviceInfo);
         await this.revokeRefreshToken(refreshToken); // Revoke old token
 
-        return { access_token, refreshToken: newRefreshToken };
+        return { accessToken, refreshToken: newRefreshToken };
     }
 
     async revokeRefreshToken(refreshToken: string): Promise<void> {
