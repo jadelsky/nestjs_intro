@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, HttpCode, HttpStatus, Query, UsePipes, ValidationPipe, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
+import { RefreshDto } from './dto/refresh.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { LoginUserSwagger, RegisterUserSwagger, RefreshTokenSwagger, VerifyEmailSwagger, ResendVerificationEmailSwagger, ForgotPasswordSwagger, ResetPasswordSwagger, DenyUsernameResetSwagger } from './../swagger.decorator';
 import { UserCreateDto } from './../users/dto/userCreate.dto';
@@ -25,7 +26,7 @@ export class AuthController {
   @Post('login')
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   signIn(@Body() signInDto: SignInDto) {
-    return this.authService.signIn(signInDto.username, signInDto.password);
+    return this.authService.signIn(signInDto.username, signInDto.password, undefined, signInDto.rememberMe);
   }
 
   @RegisterUserSwagger()
@@ -36,12 +37,18 @@ export class AuthController {
 
   @RefreshTokenSwagger()
   @Post('refresh')
-  async refresh(@Body('refresh_token') refreshToken: string) {
+  async refresh(@Body() dto: RefreshDto) {
     try {
-      return await this.authService.refreshTokens(refreshToken);
+      return await this.authService.refreshTokens(dto.refresh_token);
     } catch (err) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(@Body() dto: RefreshDto): Promise<void> {
+    await this.authService.logout(dto.refresh_token);
   }
 
   @VerifyEmailSwagger()

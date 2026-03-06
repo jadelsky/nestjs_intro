@@ -2,7 +2,8 @@ import { BadRequestException, Injectable, UnauthorizedException, ForbiddenExcept
 import { UsersService } from '../users/users.service';
 import { UserRole, User } from '../users/users.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThan } from 'typeorm';
+import { Cron } from '@nestjs/schedule';
 import { UserCreateDto } from './../users/dto/userCreate.dto';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -26,7 +27,7 @@ export class AuthService {
         private readonly emailService: EmailService,
     ) { }
 
-    async signIn(username: string, pass: string, deviceInfo?: string): Promise<any> {
+    async signIn(username: string, pass: string, deviceInfo?: string, rememberMe = false): Promise<any> {
         const user = await this.usersService.findOneByUsername(username);
         if (!user) {
             throw new UnauthorizedException('Invalid credentials');
@@ -46,16 +47,16 @@ export class AuthService {
         const { accessTokenPayload } = this.buildTokenPayloads(user);
 
         const accessToken = this.generateAccessToken(accessTokenPayload);
-        const refreshToken = await this.generateOpaqueRefreshToken(user.id, deviceInfo);
+        const refreshToken = await this.generateOpaqueRefreshToken(user.id, deviceInfo, rememberMe);
         return { accessToken, refreshToken };
     }
 
-    private async generateOpaqueRefreshToken(userId: number, deviceInfo?: string): Promise<string> {
+    private async generateOpaqueRefreshToken(userId: number, deviceInfo?: string, rememberMe = false): Promise<string> {
         // Generate a cryptographically secure random token
         const token = crypto.randomBytes(32).toString('hex');
 
-        // Calculate expiration date
-        const expirationDays = Number(this.configService.get<number>('REFRESH_EXPIRATION')) || 7;
+        // Calculate expiration date: 90 days when rememberMe, else REFRESH_EXPIRATION (default 7 days)
+        const expirationDays = rememberMe ? 90 : (Number(this.configService.get<number>('REFRESH_EXPIRATION')) || 7);
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + expirationDays);
 
@@ -68,6 +69,7 @@ export class AuthService {
             userId,
             expiresAt,
             deviceInfo,
+            rememberMe,
             isRevoked: false,
         });
 
@@ -96,8 +98,8 @@ export class AuthService {
 
         const accessToken = this.generateAccessToken(accessTokenPayload);
 
-        // Generate new refresh token and revoke the old one
-        const newRefreshToken = await this.generateOpaqueRefreshToken(user.id, tokenEntity.deviceInfo);
+        // Generate new refresh token and revoke the old one (preserve rememberMe for token rotation)
+        const newRefreshToken = await this.generateOpaqueRefreshToken(user.id, tokenEntity.deviceInfo, tokenEntity.rememberMe ?? false);
         await this.revokeRefreshToken(refreshToken); // Revoke old token
 
         return { accessToken, refreshToken: newRefreshToken };
@@ -125,11 +127,32 @@ export class AuthService {
         await this.revokeRefreshToken(refreshToken);
     }
 
-    // Clean up expired tokens (run this periodically with a cron job)
+    /**
+     * Cleans up refresh tokens from DB:
+     * - Expired tokens (expiresAt < now)
+     * - Revoked tokens older than 7 days (keeps brief audit window, then removes)
+     */
     async cleanupExpiredTokens(): Promise<void> {
+        const now = new Date();
         await this.refreshTokenRepository.delete({
-            expiresAt: { $lt: new Date() } as any,
+            expiresAt: LessThan(now),
         });
+    }
+
+    async cleanupOldRevokedTokens(): Promise<void> {
+        const revokedRetentionDays = 7;
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - revokedRetentionDays);
+        await this.refreshTokenRepository.delete({
+            isRevoked: true,
+            createdAt: LessThan(cutoff),
+        });
+    }
+
+    @Cron('0 3 * * *') // Daily at 03:00
+    async runTokenCleanup(): Promise<void> {
+        await this.cleanupExpiredTokens();
+        await this.cleanupOldRevokedTokens();
     }
 
     public generateAccessToken(payload: any) {

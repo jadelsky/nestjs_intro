@@ -26,5 +26,8 @@ export class RefreshToken {
     deviceInfo?: string; // Store device/browser info
 
     @Column({ default: false })
+    rememberMe: boolean;
+
+    @Column({ default: false })
     isRevoked: boolean;
 }
