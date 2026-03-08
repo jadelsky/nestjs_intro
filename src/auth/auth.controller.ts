@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, HttpCode, HttpStatus, Query, UsePipes, ValidationPipe, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Post, HttpCode, HttpStatus, Query, UsePipes, ValidationPipe, UnauthorizedException, Res, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -11,6 +11,7 @@ import { UsersService } from '../users/users.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { DenyUsernameResetDto } from './dto/deny-username-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { Request, Response } from 'express';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -25,8 +26,28 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('login')
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
-  signIn(@Body() signInDto: SignInDto) {
-    return this.authService.signIn(signInDto.username, signInDto.password, undefined, signInDto.rememberMe);
+  async signIn(@Body() signInDto: SignInDto, @Res({ passthrough: true }) res: Response) {
+    const { accessToken, refreshToken } = await this.authService.signIn(
+      signInDto.username,
+      signInDto.password,
+      undefined,
+      signInDto.rememberMe,
+    );
+
+    const rememberMe = signInDto.rememberMe ?? false;
+    const baseExpirationDays = Number(this.configService.get<number>('REFRESH_EXPIRATION')) || 7;
+    const expirationDays = rememberMe ? 90 : baseExpirationDays;
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: expirationDays * 24 * 60 * 60 * 1000,
+    });
+
+    return { accessToken };
   }
 
   @RegisterUserSwagger()
@@ -37,18 +58,61 @@ export class AuthController {
 
   @RefreshTokenSwagger()
   @Post('refresh')
-  async refresh(@Body() dto: RefreshDto) {
+  async refresh(@Req() req: Request, @Body() dto: RefreshDto, @Res({ passthrough: true }) res: Response) {
+    const cookieHeader = req.headers.cookie ?? '';
+    const cookieToken = cookieHeader
+      .split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith('refresh_token='))
+      ?.split('=')[1];
+
+    const refreshToken = dto?.refresh_token ?? cookieToken;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token missing');
+    }
+
     try {
-      return await this.authService.refreshTokens(dto.refresh_token);
-    } catch (err) {
+      const { accessToken, refreshToken: newRefreshToken, rememberMe } = await this.authService.refreshTokens(refreshToken);
+
+      const baseExpirationDays = Number(this.configService.get<number>('REFRESH_EXPIRATION')) || 7;
+      const expirationDays = rememberMe ? 90 : baseExpirationDays;
+      const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+
+      res.cookie('refresh_token', newRefreshToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'strict',
+        path: '/',
+        maxAge: expirationDays * 24 * 60 * 60 * 1000,
+      });
+
+      return { accessToken };
+    } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(@Body() dto: RefreshDto): Promise<void> {
-    await this.authService.logout(dto.refresh_token);
+  async logout(@Req() req: Request, @Body() dto: RefreshDto, @Res({ passthrough: true }) res: Response): Promise<void> {
+    const cookieHeader = req.headers.cookie ?? '';
+    const cookieToken = cookieHeader
+      .split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith('refresh_token='))
+      ?.split('=')[1];
+
+    const refreshToken = dto?.refresh_token ?? cookieToken;
+
+    if (refreshToken) {
+      await this.authService.logout(refreshToken);
+    }
+
+    res.clearCookie('refresh_token', {
+      path: '/',
+      sameSite: 'strict',
+    });
   }
 
   @VerifyEmailSwagger()

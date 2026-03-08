@@ -99,10 +99,11 @@ export class AuthService {
         const accessToken = this.generateAccessToken(accessTokenPayload);
 
         // Generate new refresh token and revoke the old one (preserve rememberMe for token rotation)
-        const newRefreshToken = await this.generateOpaqueRefreshToken(user.id, tokenEntity.deviceInfo, tokenEntity.rememberMe ?? false);
+        const rememberMe = tokenEntity.rememberMe ?? false;
+        const newRefreshToken = await this.generateOpaqueRefreshToken(user.id, tokenEntity.deviceInfo, rememberMe);
         await this.revokeRefreshToken(refreshToken); // Revoke old token
 
-        return { accessToken, refreshToken: newRefreshToken };
+        return { accessToken, refreshToken: newRefreshToken, rememberMe };
     }
 
     async revokeRefreshToken(refreshToken: string): Promise<void> {
